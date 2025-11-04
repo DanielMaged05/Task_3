@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 
@@ -29,6 +29,35 @@ export default function AllPerks() {
  * useEffect Hook #2: Auto-search on Input Change
 
 */
+
+  // Track whether the initial load has completed so the auto-search effect
+  // doesn't immediately fire a duplicate request on first render.
+  const initialLoadDone = useRef(false)
+
+  // useEffect #1: Initial data loading on mount
+  useEffect(() => {
+    // Load perks once when component mounts
+    // After load completes, mark initialLoadDone so auto-search can run later
+    loadAllPerks().finally(() => {
+      initialLoadDone.current = true
+    })
+    // empty dependency array -> run once on mount
+  }, [])
+
+  // useEffect #2: Auto-search when searchQuery or merchantFilter changes
+  useEffect(() => {
+    // Don't auto-run on initial mount when initialLoadDone is still false
+    if (!initialLoadDone.current && searchQuery.trim() === '' && merchantFilter.trim() === '') {
+      return
+    }
+
+    // Debounce requests while user is typing or switching filters
+    const timer = setTimeout(() => {
+      loadAllPerks()
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery, merchantFilter])
 
   
   useEffect(() => {
@@ -136,7 +165,8 @@ export default function AllPerks() {
                 type="text"
                 className="input"
                 placeholder="Enter perk name..."
-                
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
               <p className="text-xs text-zinc-500 mt-1">
                 Auto-searches as you type, or press Enter / click Search
@@ -151,7 +181,8 @@ export default function AllPerks() {
               </label>
               <select
                 className="input"
-                
+                value={merchantFilter}
+                onChange={(e) => setMerchantFilter(e.target.value)}
               >
                 <option value="">All Merchants</option>
                 
